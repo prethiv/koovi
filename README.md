@@ -21,7 +21,7 @@ window while three others run.
 ```
 
 One line, one reminder if you do not reply, then silence. Your next message in that window is the
-answer.
+answer. [Hear it](assets/koovi-voice.mp4) — ten seconds, turn the sound on.
 
 ## Install
 
@@ -102,6 +102,10 @@ and nothing tells Koovi that you did.
 > In an office? `/koovi:quiet` swaps the voice for a coloured frame that flashes around your
 > screens for five seconds with the session named in the corner. `/koovi:koovi auto` picks by
 > whether headphones are plugged in.
+
+<p align="center">
+  <img src="assets/koovi-light.gif" alt="A red frame pulsing around the screen with the session named in the corner" width="860">
+</p>
 
 ## Good to know
 
