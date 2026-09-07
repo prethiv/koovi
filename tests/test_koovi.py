@@ -135,12 +135,6 @@ class ConfigReader(Sandbox):
 
 
 class Words(Sandbox):
-    def test_request_snippet(self):
-        self.assertEqual(koovi.request_snippet("ok can you fix the login bug please"), "fix the login bug please")
-        self.assertEqual(koovi.request_snippet("ok"), "")
-        self.assertEqual(koovi.request_snippet("<task-notification><task-id>x</task-id></task-notification>"), "")
-        self.assertEqual(koovi.request_snippet("look at /Users/me/app.py and the <b>bug</b> there"), "look at and the bug there")
-
     def test_question_snippet(self):
         self.assertEqual(koovi.question_snippet("Two options.\nWhich one do you want?"), "Which one do you want?")
         self.assertEqual(koovi.question_snippet("See `db.py` and https://x.y/z. Use Postgres or SQLite?"), "Use Postgres or SQLite?")
@@ -157,10 +151,10 @@ class Words(Sandbox):
     def test_same_folder_sessions_get_a_label(self):
         now = time.time()
         st = {"sessions": {
-            "a": {"folder": "app", "last_seen": now, "first_seen": now - 100, "last_request": "fix the login bug"},
+            "a": {"folder": "app", "last_seen": now, "first_seen": now - 100, "rename": "Login work"},
             "b": {"folder": "app", "last_seen": now, "first_seen": now - 50},
             "c": {"folder": "other", "last_seen": now, "first_seen": now}}}
-        self.assertEqual(koovi.spoken_with_session(st, st["sessions"]["a"], "a", "app", "App", now), "App, the fix the login bug session")
+        self.assertEqual(koovi.spoken_with_session(st, st["sessions"]["a"], "a", "app", "App", now), "App, Login work")
         self.assertEqual(koovi.spoken_with_session(st, st["sessions"]["b"], "b", "app", "App", now), "App, session 2")
         self.assertEqual(koovi.spoken_with_session(st, st["sessions"]["c"], "c", "other", "Other", now), "Other")
 

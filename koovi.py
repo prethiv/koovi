@@ -49,7 +49,7 @@ except ImportError:
     fcntl = None
     import msvcrt
 
-KOOVI_VERSION = "0.10.0"
+KOOVI_VERSION = "0.10.1"
 
 MAC, WINDOWS, LINUX = "mac", "windows", "linux"
 OS = MAC if sys.platform == "darwin" else (WINDOWS if os.name == "nt" else LINUX)
@@ -501,37 +501,23 @@ def is_system_notice(text):
     return str(text or "").lstrip().startswith("<")
 
 
-def request_snippet(text, min_words=3, max_words=6):
-    """The first few words of what you asked, cleaned up for speech. Empty if too short to mean anything."""
-    text = str(text or "")
-    if is_system_notice(text):
-        return ""
-    text = re.sub(r"<[^>]*>", " ", text)  # drop any leftover tags
-    words = [w.strip(".,;:!?\"'()[]{}") for w in text.replace("\n", " ").split()]
-    words = [w for w in words if w and len(w) <= 20 and "/" not in w]  # no paths or ids in a spoken label
-    filler = {"so", "ok", "okay", "hey", "bro", "please", "now", "then", "and", "also", "um", "uh",
-              "yeah", "yes", "no", "right", "well", "just", "can", "you", "could", "i", "want", "we", "need", "to", "let's", "lets"}
-    while words and words[0].lower() in filler:
-        words.pop(0)
-    if len(words) < min_words:
-        return ""
-    return " ".join(words[:max_words])
-
-
 def short_title(title, max_words=6):
     words = title.replace("_", " ").replace("-", " ").split()
     return " ".join(words[:max_words])
 
 
 def spoken_with_session(st, s, sid, folder, spoken, now):
-    """If another live window uses the same folder, add this session's title so you can tell them apart."""
+    """If another live window uses the same folder, say which one.
+
+    Only a name you chose with /rename is spoken. Anything scraped out of your own words
+    reads as nonsense out loud, so the others are counted instead."""
     active = [(k, v) for k, v in st["sessions"].items()
               if v.get("folder") == folder and not v.get("ended") and now - v.get("last_seen", 0) < 8 * 3600]
     if len(active) < 2:
         return spoken
-    label = short_title(s.get("rename") or "") or s.get("last_request") or ""
+    label = short_title(s.get("rename") or "", max_words=3)
     if label:
-        return f"{spoken}, the {label} session"
+        return f"{spoken}, {label}"
     active.sort(key=lambda kv: kv[1].get("first_seen", 0))
     n = next((i + 1 for i, (k, _) in enumerate(active) if k == sid), 0)
     return f"{spoken}, session {n}" if n else spoken
@@ -1251,12 +1237,8 @@ def cmd_hook(event):
         folder = s.get("folder") or Path(cwd).name or cwd
         s.update({"folder": folder, "cwd": s.get("cwd") or cwd, "last_seen": now,
                   "first_seen": s.get("first_seen") or now})
-        if event == "prompt":
-            s["last_request"] = request_snippet(payload.get("prompt")) or s.get("last_request", "")
         if event in ("stop", "notification", "permission"):
             s["rename"] = session_rename(payload.get("transcript_path")) or s.get("rename", "")
-            if not s.get("last_request"):
-                s["last_request"] = request_snippet(analyze_transcript(payload.get("transcript_path")).get("last_user_text"))
         proj = project_settings(cfg, folder)
         spoken = proj["say"]
         if event == "prompt" and is_system_notice(payload.get("prompt")):

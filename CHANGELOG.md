@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.10.1
+
+- Stopped reading your own words back at you. When two live sessions share a folder, Koovi told
+  them apart with the first few words of your last message, so it announced "Koovi project, the
+  Base directory for this skill Run session has finished" out loud and printed the same on the
+  screen light. Only a name you gave a session with /rename is spoken now, cut to three words;
+  otherwise they are simply session 1 and session 2.
+- One less transcript read on every hook, since nothing needs your last request any more.
+
 ## 0.10.0
 
 - Shorter lines. It says what happened and stops: "Payments asks: Postgres or SQLite?" The question
