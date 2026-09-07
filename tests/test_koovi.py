@@ -283,6 +283,91 @@ def codex_transcript(path, user_text="add the retry logic", tools=2, assistant_t
     return path
 
 
+class TheLadder(Sandbox):
+    """One word, one reminder, then gone. On a window you are already reading, the first word is held."""
+
+    def setUp(self):
+        super().setUp()
+        self.was_focused, self.was_intimate = koovi.is_focused, koovi.intimate
+        self.said = []
+        koovi.intimate = lambda cfg, job, line, kind: self.said.append((kind, line))
+
+    def tearDown(self):
+        koovi.is_focused, koovi.intimate = self.was_focused, self.was_intimate
+
+    def looking_at_it(self, yes):
+        koovi.is_focused = lambda folder: (yes, "Terminal", folder)
+
+    def finish_a_turn(self, **payload):
+        payload.setdefault("tool_uses", 2)
+        path = transcript(self.tmp / "t.jsonl", **payload)
+        self.stop("s1", {"transcript_path": str(path)}, last_prompt=time.time() - 40)
+        return self.jobs[0]
+
+    def test_a_window_you_are_reading_hears_nothing_yet(self):
+        self.cfg["focus_check"] = True
+        self.looking_at_it(True)
+        job = self.finish_a_turn()
+        self.assertTrue(job["held"])
+        self.assertEqual(job["reminders"], 1)  # a finish is never nagged, but held it has said nothing at all
+        self.assertIn("HOLD done", self.diary())
+
+    def test_a_window_you_are_not_on_hears_it_at_once(self):
+        self.cfg["focus_check"] = True
+        self.looking_at_it(False)
+        job = self.finish_a_turn()
+        self.assertFalse(job["held"])
+        self.assertEqual(job["reminders"], 0)
+
+    def test_holding_says_nothing_at_all_when_reminders_are_off(self):
+        self.cfg["focus_check"] = True
+        self.cfg["timing"]["reminders"] = 0
+        self.looking_at_it(True)
+        path = transcript(self.tmp / "t.jsonl", tool_uses=2)
+        self.stop("s1", {"transcript_path": str(path)}, last_prompt=time.time() - 40)
+        self.assertEqual(self.jobs, [])
+        self.assertIn("quiet: you are on that window", self.diary())
+
+    def test_a_held_line_is_the_one_you_finally_hear(self):
+        koovi.CONFIG_PATH.write_text("focus_check: true\ntiming:\n  reminder_after_seconds: 0\n")
+        now = time.time()
+        with koovi.locked_state() as st:
+            st["sessions"]["s1"] = {"folder": "proj", "first_seen": now - 600, "last_seen": now,
+                                    "last_prompt": now - 40}
+        job = {"session": "s1", "project": "Proj", "folder": "proj", "kind": "done", "line": "Proj is done.",
+               "held": True, "spoken_at": now, "reminders": 1, "voice": True, "light": False, "question": ""}
+        koovi.cmd_announce(json.dumps(job))
+        self.assertEqual(self.said, [("done", "Proj is done.")])  # said once, in its own words, then gone
+
+    def test_a_held_line_is_dropped_the_moment_you_type(self):
+        koovi.CONFIG_PATH.write_text("focus_check: true\ntiming:\n  reminder_after_seconds: 0\n")
+        now = time.time()
+        with koovi.locked_state() as st:
+            st["sessions"]["s1"] = {"folder": "proj", "first_seen": now - 600, "last_seen": now,
+                                    "last_prompt": now + 1}  # you replied after it was held
+        job = {"session": "s1", "project": "Proj", "folder": "proj", "kind": "done", "line": "Proj is done.",
+               "held": True, "spoken_at": now, "reminders": 1, "voice": True, "light": False, "question": ""}
+        koovi.cmd_announce(json.dumps(job))
+        self.assertEqual(self.said, [])
+        self.assertIn("you already replied", self.diary())
+
+    def test_a_permission_speaks_even_on_that_window(self):
+        self.cfg["focus_check"] = True
+        self.looking_at_it(True)
+        now = time.time()
+        with koovi.locked_state() as st:
+            s = st["sessions"].setdefault("s1", {"folder": "proj", "first_seen": now - 600, "last_seen": now})
+            koovi.decide_permission(self.cfg, st, s, "s1", "notification", "Proj", "proj", now)
+        self.assertFalse(self.jobs[0]["held"])  # you answer these by clicking; nothing tells us that you did
+
+    def test_the_question_is_cut_down_for_speech(self):
+        self.cfg["focus_check"] = False
+        long = "Should we keep the old migration path around for another release or drop it right now?"
+        job = self.finish_a_turn(tool_uses=0, assistant_text="Two ways.\n" + long)
+        self.assertLessEqual(len(job["question"].split()), self.cfg["question_words"])
+        self.assertIn(job["question"], job["line"])
+
+
 class OtherTools(Sandbox):
     """Codex and Cursor send different shapes. One reader, one set of rules."""
 

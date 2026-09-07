@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.10.0
+
+- Shorter lines. It says what happened and stops: "Payments asks: Postgres or SQLite?" The question
+  is cut to the first eight words, set by `question_words`, and the sentences around it lost their
+  flourishes. A line should be over in about three seconds.
+- A window you are already reading hears nothing. Koovi holds the line instead of speaking over
+  what you are looking at, and says it once only if you still have not typed anything by
+  `reminder_after_seconds`. Held or not, you hear a session at most twice, and this way at most
+  once. `focus_check` is on by default now; set it to false to go back to speaking every time.
+- Permission requests are the exception and still speak at once. You answer those by clicking, and
+  no hook tells Koovi that you did, so a held one would fire long after you said yes.
+
 ## 0.9.9
 
 - The nine new commands from 0.9.8 never appeared. Their descriptions read "Koovi: ..." and that

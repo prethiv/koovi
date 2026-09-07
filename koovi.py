@@ -49,7 +49,7 @@ except ImportError:
     fcntl = None
     import msvcrt
 
-KOOVI_VERSION = "0.9.9"
+KOOVI_VERSION = "0.10.0"
 
 MAC, WINDOWS, LINUX = "mac", "windows", "linux"
 OS = MAC if sys.platform == "darwin" else (WINDOWS if os.name == "nt" else LINUX)
@@ -74,9 +74,10 @@ DEFAULTS = {
     "voice": "Samantha",
     "rate": 175,
     "chime": "/System/Library/Sounds/Glass.aiff",
-    "focus_check": False,
+    "focus_check": True,
     "permission_always_speak": True,
     "always_announce_questions": True,
+    "question_words": 8,  # how much of the question to read out. A line should be over in about three seconds.
     "wait_for_background_tasks": False,  # only for people whose background work always wakes the session quickly
     "remind_for": ["asking", "permission"],
     "mode": "voice",  # voice | quiet (screen light only) | auto (voice on headphones, light on speakers)
@@ -108,11 +109,11 @@ DEFAULTS = {
     },
     "projects": {},
     "phrases": {
-        "done": ["{assistant} reporting, {user}. {project} is done.", "{assistant} reporting. {project} is done."],
-        "also_done": ["{project} is also done, {user}."],
-        "asking": ["{user}, {project} needs a decision from you.", "{user}, {project} is asking: {question}"],
-        "permission": ["{user}, {project} wants permission to proceed."],
-        "reminder": ["{user}, {project} is still waiting.", "{user}, {project} is still waiting on this: {question}"],
+        "done": ["{project} is done, {user}.", "{user}, {project} is done."],
+        "also_done": ["{project} is also done."],
+        "asking": ["{project} asks: {question}", "{user}, {project} needs you."],
+        "permission": ["{project} needs a yes, {user}."],
+        "reminder": ["{project} again: {question}", "{user}, {project} is still waiting."],
     },
 }
 
@@ -1113,29 +1114,35 @@ def cmd_light_start():
 
 def announce(cfg, st, s, sid, event, spoken, folder, kind, now, check_focus, question="", **why):
     spoken = spoken_with_session(st, s, sid, folder, spoken, now)
+    question = question_snippet(question, max_words=int(cfg.get("question_words") or 8), whole=True)
     voice_ok, sound_note = voice_allowed(cfg)  # sound, or the screen light instead: same ladder either way
     if voice_ok and in_quiet_hours(cfg):
         chime(cfg)
         log(event, spoken, "CHIME quiet hours", kind=kind, **why)
         return
-    if voice_ok and check_focus and cfg.get("focus_check", True):
-        focused, app, title = is_focused(folder)
-        if focused:
-            chime(cfg)
-            log(event, spoken, "CHIME you are on that window", kind=kind, app=app, **why)
-            return
+    held = check_focus and cfg.get("focus_check", True) and is_focused(folder)[0]
+    reminders = int(cfg["timing"]["reminders"])
+    if held:            # you are reading that window already: nothing now, one word later if you never move
+        reminders = min(1, reminders)
+    elif kind not in (cfg.get("remind_for") or []):
+        reminders = 0   # a finished task is said once and never nagged
+    if held and not reminders:
+        log(event, spoken, "quiet: you are on that window", kind=kind, **why)
+        return
     line = pick_line(cfg, kind, spoken, st, question=question)
     s["last_spoken"] = now
     s["last_kind"] = kind
     if kind in ("done", "also_done"):
         st["last_done_spoken_at"] = now
         st["last_done_session"] = sid
-    remind = kind in (cfg.get("remind_for") or [])  # only nag when the session is stuck waiting on you
-    job = {"session": sid, "project": spoken, "folder": folder, "kind": kind, "line": line,
-           "spoken_at": now, "reminders": int(cfg["timing"]["reminders"]) if remind else 0,
+    job = {"session": sid, "project": spoken, "folder": folder, "kind": kind, "line": line, "held": held,
+           "spoken_at": now, "reminders": reminders,
            "voice": voice_ok, "light": light_wanted(cfg, voice_ok), "question": question}
     spawn_worker(job)
-    log(event, spoken, f"{announce_word(job)} {kind}: {line if voice_ok else sound_note + ', so no sound'}", **why)
+    if held:
+        log(event, spoken, f"HOLD {kind}: you are on that window. Only if you do nothing: {line}", **why)
+    else:
+        log(event, spoken, f"{announce_word(job)} {kind}: {line if voice_ok else sound_note + ', so no sound'}", **why)
 
 
 def decide_stop(cfg, st, s, sid, payload, spoken, folder, now):
@@ -1177,7 +1184,10 @@ def decide_stop(cfg, st, s, sid, payload, spoken, folder, now):
 
 
 def decide_permission(cfg, st, s, sid, event, spoken, folder, now, **why):
-    """Something is blocked waiting for your yes or no. Always worth a word, even on that window."""
+    """Something is blocked waiting for your yes or no.
+
+    Spoken at once even on that window. You answer these by clicking, and no hook tells us you did,
+    so a held permission would speak two minutes after you already said yes."""
     if not cfg.get("permission_always_speak", True):
         chime(cfg)
         log(event, spoken, "CHIME permission", **why)
@@ -1282,7 +1292,9 @@ def cmd_announce(job_json):
     job = json.loads(job_json)
     cfg = load_config()
     sid, spoken, folder = job["session"], job["project"], job["folder"]
-    intimate(cfg, job, job["line"], job["kind"])
+    held = job.get("held")  # you were on that window, so the first word was never said
+    if not held:
+        intimate(cfg, job, job["line"], job["kind"])
     spoken_at = job["spoken_at"]
     for _ in range(int(job.get("reminders", 0))):
         time.sleep(float(cfg["timing"]["reminder_after_seconds"]))
@@ -1300,15 +1312,16 @@ def cmd_announce(job_json):
             if in_quiet_hours(cfg):
                 log("reminder", spoken, "skipped: quiet hours")
                 return
-            if cfg.get("focus_check", True) and is_focused(folder)[0]:
+            if not held and cfg.get("focus_check", True) and is_focused(folder)[0]:
                 log("reminder", spoken, "skipped: you are on that window")
                 return
-            line = pick_line(cfg, "reminder", spoken, st, question=job.get("question", ""))
+            kind = job["kind"] if held else "reminder"  # a held job finally says the line it was holding
+            line = job["line"] if held else pick_line(cfg, "reminder", spoken, st, question=job.get("question", ""))
             now = time.time()
             s["last_spoken"] = now
             spoken_at = now
-            log("reminder", spoken, f"{announce_word(job)} reminder: {line}")
-        intimate(cfg, job, line, "reminder")
+            log("reminder", spoken, f"{announce_word(job)} {kind}: {line}")
+        intimate(cfg, job, line, kind)
 
 
 def cmd_test(kind="done", project="Payments", *question):

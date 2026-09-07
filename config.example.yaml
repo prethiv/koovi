@@ -8,13 +8,17 @@ user: boss               # what it calls you
 voice: Samantha          # a Mac voice. See the list with:  koovi.sh voices
 rate: 175                # speaking speed, words per minute. 150 slower, 200 faster.
 
-# true:  when that project's window is already in front, play a soft sound instead of talking.
-# false: always talk, even if you are on that window (you might be looking at your phone).
-focus_check: false
-# Permission requests are always spoken, even if you are on that window. They block the session.
+# true:  when that project's window is already in front, say nothing yet. If you still have not typed
+#        anything by reminder_after_seconds, it says it once then. One word in all, or none.
+# false: always talk, even while you are on that window (you might be looking at your phone).
+focus_check: true
+# Permission requests are spoken at once, even on that window: you answer them by clicking, and
+# nothing tells Koovi that you did, so a held one would speak long after you said yes.
 permission_always_speak: true
 # When Claude ends its reply with a question for you, always speak, even after a short turn.
 always_announce_questions: true
+# How many words of the question to read out. Keep it small: a line should be over in three seconds.
+question_words: 8
 # true: stay quiet when a turn ends while background work is still running, and report when that
 # work wakes the session. Only worth it if your background jobs finish quickly. Long-running ones
 # (watchers, monitors, agents that live for hours) would silence real finishes, so this is off.
@@ -78,33 +82,24 @@ projects:
 
 phrases:
   done:
-    - "Hey {user}, {project} is done."
-    - "{assistant} reporting, {user}. {project} is done."
-    - "{assistant} reporting. {project} is done."
-    - "{user}, {project} has finished. Take a look when you're free."
-    - "Mission complete on {project}, {user}."
-    - "{project} is ready for your eyes, {user}."
-    - "Good news, {user}. {project} just wrapped up."
+    - "{project} is done, {user}."
+    - "{user}, {project} is done."
+    - "{project} is done."
+    - "{project} has finished, {user}."
   also_done:
-    - "{project} is also done, {user}."
-    - "And {project} has finished too."
-    - "Add {project} to the done list, {user}."
+    - "{project} is also done."
+    - "And {project} is done too."
+    - "{project} too, {user}."
   asking:
-    - "{user}, {project} is asking: {question}"
-    - "{project} wants to know: {question}"
-    - "Hey {user}, {project} has a question. {question}"
-    - "Hey {user}, {project} is asking you something."
-    - "{user}, {project} needs a decision from you."
-    - "{assistant} here. {project} is waiting on your answer."
-    - "{project} has a question for you, {user}."
+    - "{project} asks: {question}"
+    - "{user}, {project} asks: {question}"
+    - "{user}, {project} needs you."
+    - "{project} has a question, {user}."
   permission:
-    - "Hey {user}, {project} needs a yes from you."
-    - "{user}, {project} wants permission to proceed."
-    - "{project} is asking for your approval, {user}."
-    - "Hold on, {user}. {project} needs a yes or no."
+    - "{project} needs a yes, {user}."
+    - "{user}, {project} wants permission."
+    - "{project} needs your okay."
   reminder:
-    - "{user}, {project} is still waiting on this: {question}"
-    - "Hey {user}, {project} is still waiting on you."
+    - "{project} again: {question}"
     - "{user}, {project} is still waiting."
-    - "Still no word on {project}, {user}."
-    - "Gentle reminder, {user}. {project} is on hold for you."
+    - "{project} still needs you."

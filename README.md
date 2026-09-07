@@ -6,7 +6,7 @@
 
 <p align="center">
   <a href="https://github.com/tjmode/koovi/actions/workflows/ci.yml"><img src="https://github.com/tjmode/koovi/actions/workflows/ci.yml/badge.svg" alt="tests"></a>
-  <a href="CHANGELOG.md"><img src="https://img.shields.io/badge/version-0.9.9-2ea44f" alt="version"></a>
+  <a href="CHANGELOG.md"><img src="https://img.shields.io/badge/version-0.10.0-2ea44f" alt="version"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/licence-MIT-blue" alt="licence"></a>
   <img src="https://img.shields.io/badge/macOS-ready-black?logo=apple&logoColor=white" alt="macOS">
   <img src="https://img.shields.io/badge/Claude%20Code%20%C2%B7%20Codex%20%C2%B7%20Cursor-supported-6b46c1" alt="Claude Code, Codex, Cursor">
@@ -16,8 +16,8 @@
 window while three others run.
 
 ```
-"Koovi reporting. Checkout is done."
-"Payments is asking: should we use Postgres or SQLite?"
+"Checkout is done."
+"Payments asks: Postgres or SQLite?"
 ```
 
 One line, one reminder if you do not reply, then silence. Your next message in that window is the
@@ -92,8 +92,11 @@ Nothing about the voice is fixed:
 - The same window twice inside 20 seconds, muted projects, and your quiet hours.
 - After one reminder. Finished work is announced once and never nagged.
 - While your microphone is in use. It even stops mid-word if you start dictating.
+- While you are on that window already. If you still have not typed anything two minutes
+  later, it says it once then, and that is the whole of it.
 
-Questions and permission requests are always spoken, and it says what was asked.
+Permission requests are the exception and are spoken at once: you answer those by clicking,
+and nothing tells Koovi that you did.
 
 > [!TIP]
 > In an office? `/koovi:quiet` swaps the voice for a coloured frame that flashes around your
