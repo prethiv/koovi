@@ -417,7 +417,9 @@ class OtherTools(Sandbox):
             ok = install.write_opencode_plugin(uninstall=False)
             self.assertTrue(ok)
             self.assertTrue(opencode_plugin_path.exists())
-            self.assertIn("KooviPlugin", opencode_plugin_path.read_text())
+            plugin_text = opencode_plugin_path.read_text()
+            self.assertIn('id: "koovi"', plugin_text)
+            self.assertIn("setup(ctx)", plugin_text)
 
             # Uninstall
             ok = install.write_opencode_plugin(uninstall=True)

@@ -42,31 +42,44 @@ function runKoovi(action, payload) {
   }
 }
 
-export const KooviPlugin = async () => {
-  return {
-    event: async ({ event }) => {
-      if (!event || !event.type) return;
+function handleEvent(event) {
+  if (!event || !event.type) return;
 
-      const props = event.properties || {};
-      const sessionID = props.sessionID || props.sessionId || props.session_id || "opencode";
-      const cwd = props.cwd || process.cwd();
-      const payload = {
-        session_id: sessionID,
-        cwd,
-        ...props,
-      };
-
-      if (event.type === "message.created" && props.role === "user") {
-        runKoovi("prompt", payload);
-      } else if (event.type === "session.idle") {
-        runKoovi("stop", payload);
-      } else if (event.type === "permission.asked") {
-        runKoovi("permission", payload);
-      } else if (event.type === "session.deleted") {
-        runKoovi("session_end", payload);
-      }
-    },
+  const props = event.properties || {};
+  const sessionID = props.sessionID || props.sessionId || props.session_id || "opencode";
+  const cwd = props.cwd || process.cwd();
+  const payload = {
+    session_id: sessionID,
+    cwd,
+    ...props,
   };
+
+  if (event.type === "message.created" && props.role === "user") {
+    runKoovi("prompt", payload);
+  } else if (event.type === "session.idle") {
+    runKoovi("stop", payload);
+  } else if (event.type === "permission.asked") {
+    runKoovi("permission", payload);
+  } else if (event.type === "session.deleted") {
+    runKoovi("session_end", payload);
+  }
+}
+
+// OpenCode v2 Plugin Definition
+export const plugin = {
+  id: "koovi",
+  async setup(ctx) {
+    if (ctx && ctx.event && typeof ctx.event.subscribe === "function") {
+      ctx.event.subscribe((event) => {
+        handleEvent(event);
+      });
+    }
+    return {
+      event: async ({ event }) => {
+        handleEvent(event);
+      },
+    };
+  },
 };
 
-export default KooviPlugin;
+export default plugin;
