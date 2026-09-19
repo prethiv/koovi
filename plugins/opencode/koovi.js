@@ -19,16 +19,13 @@ function runKoovi(action, payload) {
   try {
     const launcher = resolveLauncher();
     const isWin = process.platform === "win32";
+    const script = launcher.endsWith(".sh") ? launcher.replace(/\.sh$/, ".py") : launcher;
     const proc = isWin
-      ? spawn("python", [launcher.replace(/\.sh$/, ".py"), action], {
+      ? spawn("python", [script, action], {
           stdio: ["pipe", "ignore", "ignore"],
-          shell: true,
-          detached: true,
         })
       : spawn(launcher, [action], {
           stdio: ["pipe", "ignore", "ignore"],
-          shell: true,
-          detached: true,
         });
 
     proc.on("error", () => {});
@@ -36,7 +33,6 @@ function runKoovi(action, payload) {
       proc.stdin.write(JSON.stringify(payload));
       proc.stdin.end();
     }
-    proc.unref();
   } catch (err) {
     // Non-blocking: Koovi failures should never interrupt OpenCode
   }
