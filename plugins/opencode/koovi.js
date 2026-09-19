@@ -42,26 +42,48 @@ function runKoovi(action, payload) {
   }
 }
 
+let sessionLastText = {};
+
 function handleEvent(event) {
   if (!event || !event.type) return;
 
   const props = event.properties || {};
   const sessionID = props.sessionID || props.sessionId || props.session_id || "opencode";
   const cwd = props.cwd || process.cwd();
+
+  // Track assistant text so Koovi knows if it ended in a question
+  if (event.type === "message.updated" || event.type === "message.created") {
+    const info = props.info || props.message || props;
+    if (info.role === "assistant" && (info.content || info.text)) {
+      sessionLastText[sessionID] = info.content || info.text;
+    } else if (info.role === "user") {
+      runKoovi("prompt", { session_id: sessionID, cwd, ...props });
+    }
+  } else if (event.type === "message.part.updated" || event.type === "message.part.created") {
+    const part = props.part || {};
+    if (part.text) {
+      sessionLastText[sessionID] = (sessionLastText[sessionID] || "") + (props.delta || part.text);
+    }
+  }
+
   const payload = {
     session_id: sessionID,
     cwd,
+    last_assistant_message: sessionLastText[sessionID] || props.last_assistant_message || "",
     ...props,
   };
 
-  if (event.type === "message.created" && props.role === "user") {
-    runKoovi("prompt", payload);
-  } else if (event.type === "session.idle") {
+  const isIdle = event.type === "session.idle" ||
+    (event.type === "session.status" && (props.status === "idle" || props.status === "stopped"));
+
+  if (isIdle) {
     runKoovi("stop", payload);
+    delete sessionLastText[sessionID];
   } else if (event.type === "permission.asked") {
     runKoovi("permission", payload);
   } else if (event.type === "session.deleted") {
     runKoovi("session_end", payload);
+    delete sessionLastText[sessionID];
   }
 }
 

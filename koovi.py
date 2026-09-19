@@ -729,6 +729,8 @@ def restore_browsers(cfg, ducked):
 
 
 def restore_music(saved):
+    if not saved:
+        return
     for app, vol in saved:
         try:
             _osa(f'tell application "{app}" to set sound volume to {vol}')
