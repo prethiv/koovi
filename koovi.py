@@ -2,8 +2,8 @@
 """
 Koovi - a small add-on that SPEAKS which session finished or needs you.
 
-Claude Code, Codex and Cursor all call this program through their hooks. Koovi
-only listens and speaks. It never talks back, and never touches your code.
+Claude Code, Codex, Cursor and OpenCode all call this program through their hooks/plugins.
+Koovi only listens and speaks. It never talks back, and never touches your code.
 In quiet mode (config: mode: quiet) it shows a screen light instead of talking.
 
 Commands used by the hooks (they read a JSON payload on stdin):
@@ -1356,8 +1356,10 @@ def hook_payload():
     except Exception:
         payload = {}
     roots = payload.get("workspace_roots") or []
-    payload["session_id"] = payload.get("session_id") or payload.get("conversation_id") or "unknown"
-    payload["cwd"] = payload.get("cwd") or (roots[0] if roots else None) or os.getcwd()
+    payload["session_id"] = (payload.get("session_id") or payload.get("conversation_id")
+                             or payload.get("sessionID") or payload.get("sessionId") or "unknown")
+    payload["cwd"] = (payload.get("cwd") or payload.get("directory")
+                      or (roots[0] if roots else None) or os.getcwd())
     return payload
 
 
@@ -1567,6 +1569,12 @@ def cmd_doctor():
             check(f"{tool} hooks ({path})", False, f"set up for {found or 'nothing'}; run: python3 install.py")
         else:
             check(f"{tool}: not set up. Only needed if you use it: python3 install.py --{tool.split()[0].lower()}", True)
+    opencode_plugin = Path.home() / ".config" / "opencode" / "plugins" / "koovi.js"
+    if opencode_plugin.parent.exists():
+        if opencode_plugin.exists() and "koovi" in opencode_plugin.read_text().lower():
+            check("OpenCode: set up", True)
+        else:
+            check("OpenCode: not set up. Only needed if you use it: python3 install.py --opencode", True)
     sites = [str(x) for x in (cfg.get("browser_music_sites") or [])]
     for app, flavor in _running_browsers():
         status, info = _run_browser_js(app, flavor, "1", sites)

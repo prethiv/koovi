@@ -6,6 +6,7 @@ Puts the Koovi hooks into the coding tools you use, for every project.
   python3 install.py --claude      just Claude Code      (~/.claude/settings.json)
   python3 install.py --codex       just Codex            (~/.codex/hooks.json)
   python3 install.py --cursor      just Cursor           (~/.cursor/hooks.json)
+  python3 install.py --opencode    just OpenCode         (~/.config/opencode/plugins/koovi.js)
   python3 install.py --uninstall   take them out again
 
 A backup of each file is made before it is changed. Claude Code users can install Koovi as a
@@ -20,7 +21,9 @@ import shutil
 import sys
 from pathlib import Path
 
-LAUNCHER = Path(__file__).resolve().parent / "koovi.sh"
+HERE = Path(__file__).resolve().parent
+LAUNCHER = HERE / "koovi.sh"
+OPENCODE_PLUGIN_SRC = HERE / "plugins" / "opencode" / "koovi.js"
 COMMAND = {  # what Koovi is asked to do, per event, for each tool
     "claude": {
         "file": Path.home() / ".claude" / "settings.json",
@@ -35,6 +38,10 @@ COMMAND = {  # what Koovi is asked to do, per event, for each tool
     "cursor": {
         "file": Path.home() / ".cursor" / "hooks.json",
         "events": {"beforeSubmitPrompt": "prompt", "stop": "stop", "sessionEnd": "session_end"},
+    },
+    "opencode": {
+        "file": Path.home() / ".config" / "opencode" / "plugins" / "koovi.js",
+        "events": {},
     },
 }
 
@@ -52,6 +59,8 @@ def hook_entry(tool, arg):
 
 
 def write_hooks(tool, uninstall):
+    if tool == "opencode":
+        return write_opencode_plugin(uninstall)
     spec = COMMAND[tool]
     path = spec["file"]
     try:
@@ -94,20 +103,59 @@ def write_hooks(tool, uninstall):
     return True
 
 
+def write_opencode_plugin(uninstall):
+    target = COMMAND["opencode"]["file"]
+    if uninstall:
+        if target.exists():
+            try:
+                target.unlink()
+                print(f"  opencode: removed from {target}")
+            except Exception as exc:
+                print(f"  opencode: failed to remove {target}: {exc}")
+                return False
+        else:
+            print(f"  opencode: not present at {target}")
+        return True
+
+    try:
+        target.parent.mkdir(parents=True, exist_ok=True)
+        # Update plugin content with absolute launcher path if installed globally
+        content = OPENCODE_PLUGIN_SRC.read_text()
+        launcher_posix = str(LAUNCHER).replace("\\", "/")
+        custom_resolver = (
+            f"function resolveLauncher() {{\n"
+            f"  return \"{launcher_posix}\";\n"
+            f"}}"
+        )
+        if "function resolveLauncher()" in content:
+            content = re_sub_resolver = re_sub(content, custom_resolver)
+        target.write_text(content)
+        print(f"  opencode: installed in {target}")
+        return True
+    except Exception as exc:
+        print(f"  opencode: failed to install in {target}: {exc}")
+        return False
+
+
+def re_sub(text, replacement):
+    import re
+    return re.sub(r"function resolveLauncher\(\) \{[\s\S]*?\n\}", replacement, text)
+
+
 def main():
     uninstall = "--uninstall" in sys.argv
     picked = [t for t in COMMAND if f"--{t}" in sys.argv]
     if not picked:  # nothing named: every tool that is set up on this machine
-        picked = [t for t, spec in COMMAND.items() if spec["file"].parent.exists()]
+        picked = [t for t, spec in COMMAND.items() if (spec["file"].parent.exists() or (t == "opencode" and (Path.home() / ".config" / "opencode").exists()))]
     if not picked:
-        print("No coding tool found. Expected one of ~/.claude, ~/.codex or ~/.cursor.")
+        print("No coding tool found. Expected one of ~/.claude, ~/.codex, ~/.cursor, or ~/.config/opencode.")
         return 1
 
     print(("Removing" if uninstall else "Installing") + " Koovi hooks:")
     ok = all([write_hooks(tool, uninstall) for tool in picked])
     if not uninstall and ok:
         print("Try it now:  ./koovi.sh test done \"Your project\"")
-        print("Open windows in Codex and Cursor need a restart. Claude Code usually picks it up at once.")
+        print("Open windows in Codex, Cursor, and OpenCode need a restart. Claude Code usually picks it up at once.")
     return 0 if ok else 1
 
 

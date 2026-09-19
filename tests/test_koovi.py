@@ -394,6 +394,8 @@ class OtherTools(Sandbox):
         for raw, sid, folder in (
             ({"session_id": "a", "cwd": "/x/app"}, "a", "/x/app"),
             ({"conversation_id": "b", "workspace_roots": ["/x/web", "/x/other"]}, "b", "/x/web"),
+            ({"sessionID": "ses-open-1", "cwd": "/x/opencode-proj"}, "ses-open-1", "/x/opencode-proj"),
+            ({"sessionId": "ses-open-2", "directory": "/x/opencode-dir"}, "ses-open-2", "/x/opencode-dir"),
         ):
             stdin, sys.stdin = sys.stdin, io.StringIO(json.dumps(raw))
             try:
@@ -401,6 +403,28 @@ class OtherTools(Sandbox):
             finally:
                 sys.stdin = stdin
             self.assertEqual((got["session_id"], got["cwd"]), (sid, folder))
+
+    def test_opencode_installer(self):
+        import install
+        mock_home = self.tmp / "home"
+        real_home = install.Path.home
+        install.Path.home = lambda: mock_home
+        try:
+            opencode_plugin_path = mock_home / ".config" / "opencode" / "plugins" / "koovi.js"
+            install.COMMAND["opencode"]["file"] = opencode_plugin_path
+
+            # Install
+            ok = install.write_opencode_plugin(uninstall=False)
+            self.assertTrue(ok)
+            self.assertTrue(opencode_plugin_path.exists())
+            self.assertIn("KooviPlugin", opencode_plugin_path.read_text())
+
+            # Uninstall
+            ok = install.write_opencode_plugin(uninstall=True)
+            self.assertTrue(ok)
+            self.assertFalse(opencode_plugin_path.exists())
+        finally:
+            install.Path.home = real_home
 
     def test_permission_is_spoken_even_on_that_window(self):
         now = time.time()

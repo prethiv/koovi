@@ -9,7 +9,7 @@
   <a href="CHANGELOG.md"><img src="https://img.shields.io/badge/version-0.10.1-2ea44f" alt="version"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/licence-MIT-blue" alt="licence"></a>
   <img src="https://img.shields.io/badge/macOS-ready-black?logo=apple&logoColor=white" alt="macOS">
-  <img src="https://img.shields.io/badge/Claude%20Code%20%C2%B7%20Codex%20%C2%B7%20Cursor-supported-6b46c1" alt="Claude Code, Codex, Cursor">
+  <img src="https://img.shields.io/badge/Claude%20Code%20%C2%B7%20Codex%20%C2%B7%20Cursor%20%C2%B7%20OpenCode-supported-6b46c1" alt="Claude Code, Codex, Cursor, OpenCode">
 </p>
 
 **Koovi tells you which of your coding sessions just finished or needs an answer.** Work in one
@@ -41,7 +41,7 @@ claude plugin marketplace add tjmode/koovi
 claude plugin install koovi@koovi
 ```
 
-**Codex, Cursor, or without the plugin system**
+**Codex, Cursor, OpenCode, or without the plugin system**
 
 ```sh
 git clone https://github.com/tjmode/koovi.git
